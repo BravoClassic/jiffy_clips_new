@@ -84,7 +84,6 @@ function VideoCard({
       <div className="absolute bottom-4 left-4 right-4 z-10">
         <div className="flex items-start space-x-2">
           <Avatar>
-            {/* https://tovaadvdtovtmmfmoxor.supabase.co/storage/v1/object/sign/videos/jiffy_clips/YouTube%20Shorts%20HD.mp4?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJ2aWRlb3MvamlmZnlfY2xpcHMvWW91VHViZSBTaG9ydHMgSEQubXA0IiwiaWF0IjoxNzM3NDY0NjYyLCJleHAiOjMxNTUzMDU5Mjg2NjJ9.VS2rLzWQP0X-OyKfzjtUOWMmDtXB3DTlE0gvL-Ljy-8&t=2025-01-21T13%3A04%3A22.759Z */}
             <AvatarImage src={`https://avatar.vercel.sh/${video.user_id}`} />
             <AvatarFallback>{video.user_id.toUpperCase()}</AvatarFallback>
           </Avatar>
