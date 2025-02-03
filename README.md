@@ -81,3 +81,44 @@ Go ahead and create a [pull request](https://github.com/clerk/clerk-nextjs-demo-
 You can discuss ideas, ask questions, and meet others from the community in our [Discord](https://clerk.com/discord).
 
 If you prefer, you can also find support through our [Twitter](https://twitter.com/ClerkDev), or you can [email](mailto:support@clerk.dev) us!
+
+
+
+// const videos = [
+//   {
+//     id: 1,
+//     username: "user1",
+//     description: "Check out this cool video!",
+//     likes: 1000,
+//     comments: 50,
+//     shares: 20,
+//     url: "https://tovaadvdtovtmmfmoxor.supabase.co/storage/v1/object/sign/videos/jiffy_clips/YouTube%20Shorts%20HD%20(1).mp4?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJ2aWRlb3MvamlmZnlfY2xpcHMvWW91VHViZSBTaG9ydHMgSEQgKDEpLm1wNCIsImlhdCI6MTczNzQ2NzA0MCwiZXhwIjozMTU1MzA1OTMxMDQwfQ.TncnoxRHTN5vsmxvErH3RvvMhgx3__PBv0dwnM2GaZ0&t=2025-01-21T13%3A44%3A00.742Z",
+//   },
+//   {
+//     id: 2,
+//     username: "user2",
+//     description: "Another awesome clip!",
+//     likes: 500,
+//     comments: 30,
+//     shares: 10,
+//     url: "https://tovaadvdtovtmmfmoxor.supabase.co/storage/v1/object/sign/videos/jiffy_clips/YouTube%20Shorts%20HD%20(2).mp4?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJ2aWRlb3MvamlmZnlfY2xpcHMvWW91VHViZSBTaG9ydHMgSEQgKDIpLm1wNCIsImlhdCI6MTczNzQ2NzAyMSwiZXhwIjozMTU1MzA1OTMxMDIxfQ.NfkoGxaJ9WmiYvTWLokPbcLm3TsAb2cLqSt8FK3WcZU&t=2025-01-21T13%3A43%3A41.542Z",
+//   },
+//   {
+//     id: 3,
+//     username: "user3",
+//     description: "This is amazing!",
+//     likes: 750,
+//     comments: 40,
+//     shares: 15,
+//     url: "https://tovaadvdtovtmmfmoxor.supabase.co/storage/v1/object/sign/videos/jiffy_clips/YouTube%20Shorts%20HD%20(3).mp4?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJ2aWRlb3MvamlmZnlfY2xpcHMvWW91VHViZSBTaG9ydHMgSEQgKDMpLm1wNCIsImlhdCI6MTczNzQ2Njk5MCwiZXhwIjozMTU1MzA1OTMwOTkwfQ.UP6SR1H8cw2XJMAp4XMbaqf8I_jJTlL2BrE9bLSf3l8&t=2025-01-21T13%3A43%3A09.987Z",
+//   },
+//   {
+//     id: 4,
+//     username: "user4",
+//     description: "You won't believe what happens next!",
+//     likes: 1200,
+//     comments: 60,
+//     shares: 25,
+//     url: "https://tovaadvdtovtmmfmoxor.supabase.co/storage/v1/object/sign/videos/jiffy_clips/YouTube%20Shorts%20HD.mp4?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJ2aWRlb3MvamlmZnlfY2xpcHMvWW91VHViZSBTaG9ydHMgSEQubXA0IiwiaWF0IjoxNzM3NDY0NjYyLCJleHAiOjMxNTUzMDU5Mjg2NjJ9.VS2rLzWQP0X-OyKfzjtUOWMmDtXB3DTlE0gvL-Ljy-8&t=2025-01-21T13%3A04%3A22.759Z",
+//   },
+// ];

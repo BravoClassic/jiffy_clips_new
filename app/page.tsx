@@ -48,7 +48,7 @@ export default function Home() {
             <div className="relative flex gap-3">
               <SignedIn>
                 <Link
-                  href="/dashboard"
+                  href="/home"
                   className="px-4 py-2 rounded-full bg-[#131316] text-white text-sm font-semibold"
                 >
                   Dashboard
@@ -104,7 +104,6 @@ export default function Home() {
         </div>
         <div className="absolute left-0 right-0 bottom-0 h-[18.75rem] bg-gradient-to-t from-white" />
       </main>
-      <LearnMore cards={CARDS} />
       <Footer />
     </>
   )
