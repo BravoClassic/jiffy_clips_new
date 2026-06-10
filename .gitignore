@@ -41,3 +41,10 @@ videos/*
 !videos/*.js
 !videos/*.ts
 public/_next-video
+
+# local database
+/prisma/dev.db
+/prisma/dev.db-journal
+
+# uploaded videos
+/public/uploads

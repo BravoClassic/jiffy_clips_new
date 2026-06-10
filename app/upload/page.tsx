@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "../components/sidebar";
 import { InfoMessage } from "../components/infoMessage";
-import { useSession, useUser } from "@clerk/nextjs";
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,10 +16,6 @@ export default function Upload() {
   const [infoMessageType, setInfoMessageType] = useState<string>("");
   const router = useRouter();
   const [loading, setLoading] = useState<Boolean | null>();
-  const query = useSearchParams();
-  const { user } = useUser();
-  // The `useSession()` hook will be used to get the Clerk session object
-  const { session } = useSession();
   const hasMounted = useRef(false);
 
   const getDescription = async () => {
@@ -120,81 +115,70 @@ export default function Upload() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the video file and description to your backend
     if (!file) {
       setMessage("Something went wrong. Upload a video");
       setInfoMessageType("error");
-      console.log(message);
       return;
     }
-    const result = await getTags();
-    if (result) {
-      const { tags, categories } = result;
-      console.log("Tags:", tags, "Categories:", categories);
 
-      try {
-        const tagsAndCategories = await getTags();
-        if (!tagsAndCategories) return;
+    const tagsAndCategories = await getTags();
+    if (!tagsAndCategories) return;
 
-        const { tags, categories } = tagsAndCategories;
+    const { tags, categories } = tagsAndCategories;
 
-        // Step 1: Upload video to Supabase bucket
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("description", description);
-        formData.append("user_id", user?.id || "");
-        const uploadResponse = await fetch("/api/upload-video", {
-          method: "POST",
-          body: formData,
-          headers: {
-            Authorization: `Bearer ${await session?.getToken()}`, // Add the token here
-          },
-        });
+    try {
+      // Step 1: Upload video to local storage + database
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("description", description);
+      const uploadResponse = await fetch("/api/upload-video", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.error || "Video upload failed.");
-        }
-
-        const { videoId } = await uploadResponse.json();
-
-        // Step 2: Insert tags and categories into Supabase
-        await Promise.all([
-          ...tags.map(async (tag: string) => {
-            const tagResponse = await fetch("/api/add-tag", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ videoId, tag }),
-            });
-            if (!tagResponse.ok) {
-              throw new Error("Failed to insert tag.");
-            }
-          }),
-          ...categories.map(async (category: string) => {
-            const categoryResponse = await fetch("/api/add-category", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ videoId, category }),
-            });
-            if (!categoryResponse.ok) {
-              throw new Error("Failed to insert category.");
-            }
-          }),
-        ]);
-
-        setMessage("Video uploaded successfully!");
-        setInfoMessageType("success");
-        resetForm(); // Reset the form after successful upload
-        router.push("/upload?success=true");
-      } catch (err: any) {
-        console.error("Error during upload:", err.message);
-        setMessage(err.message || "Something went wrong.");
-        setInfoMessageType("error");
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || "Video upload failed.");
       }
+
+      const { videoId } = await uploadResponse.json();
+
+      // Step 2: Save tags and categories, linked to the video
+      await Promise.all([
+        ...tags.map(async (tag: string) => {
+          const tagResponse = await fetch("/api/add-tag", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ videoId, tag }),
+          });
+          if (!tagResponse.ok) {
+            throw new Error("Failed to insert tag.");
+          }
+        }),
+        ...categories.map(async (category: string) => {
+          const categoryResponse = await fetch("/api/add-category", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ videoId, category }),
+          });
+          if (!categoryResponse.ok) {
+            throw new Error("Failed to insert category.");
+          }
+        }),
+      ]);
+
+      setMessage("Video uploaded successfully!");
+      setInfoMessageType("success");
+      resetForm(); // Reset the form after successful upload
+      router.push("/upload?success=true");
+    } catch (err: any) {
+      console.error("Error during upload:", err.message);
+      setMessage(err.message || "Something went wrong.");
+      setInfoMessageType("error");
     }
   };
 

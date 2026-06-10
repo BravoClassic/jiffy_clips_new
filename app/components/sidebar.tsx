@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Upload, User, LogIn, UserPlus } from "lucide-react";
+import { Home, Upload, Users, User, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -11,10 +11,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserButton } from "@clerk/nextjs";
-import { ClerkLogo } from "./clerk-logo";
+import { JiffyLogoMark } from "./jiffy-logo";
+import { UserSync } from "./user-sync";
 
 const sidebarItems = [
   { icon: Home, label: "Home", href: "/home" },
+  { icon: Users, label: "Following", href: "/following" },
   { icon: Upload, label: "Upload", href: "/upload" },
 ];
 
@@ -23,12 +25,13 @@ export function Sidebar() {
 
   return (
     <TooltipProvider>
+      <UserSync />
       <div className="fixed left-0 top-0 bottom-0 w-16 flex flex-col items-center justify-center space-y-4 bg-black bg-opacity-50 z-50">
         {/* Logo Section */}
         <div className="mb-8">
-
-            <ClerkLogo/>
-
+          <Link href="/home">
+            <JiffyLogoMark size={36} />
+          </Link>
         </div>
         {sidebarItems.map((item) => (
           <Tooltip key={item.href}>

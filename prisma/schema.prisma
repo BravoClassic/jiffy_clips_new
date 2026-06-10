@@ -1,0 +1,110 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id // Clerk user id
+  username  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  videos    Video[]
+  likes     Like[]
+  comments  Comment[]
+  reports   Report[]
+  following Follow[] @relation("Follower")
+  followers Follow[] @relation("Following")
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  videoUrl    String
+  description String?
+  flagged     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  likes      Like[]
+  comments   Comment[]
+  reports    Report[]
+  tags       VideoTag[]
+  categories VideoCategory[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  createdAt DateTime @default(now())
+  video     Video    @relation(fields: [videoId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([videoId, userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+  video     Video    @relation(fields: [videoId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id])
+  following   User     @relation("Following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  reason    String?
+  createdAt DateTime @default(now())
+  video     Video    @relation(fields: [videoId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Tag {
+  id     String     @id @default(cuid())
+  name   String     @unique
+  videos VideoTag[]
+}
+
+model Category {
+  id     String          @id @default(cuid())
+  name   String          @unique
+  videos VideoCategory[]
+}
+
+model VideoTag {
+  videoId String
+  tagId   String
+  video   Video @relation(fields: [videoId], references: [id])
+  tag     Tag   @relation(fields: [tagId], references: [id])
+
+  @@id([videoId, tagId])
+}
+
+model VideoCategory {
+  videoId    String
+  categoryId String
+  video      Video    @relation(fields: [videoId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([videoId, categoryId])
+}

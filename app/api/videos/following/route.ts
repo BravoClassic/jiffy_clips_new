@@ -8,14 +8,27 @@ export async function GET(req: Request) {
     const limit = parseInt(url.searchParams.get("limit") || "10", 10);
     const offset = parseInt(url.searchParams.get("offset") || "0", 10);
     const viewerId = url.searchParams.get("viewerId");
-    const sort = url.searchParams.get("sort");
+
+    if (!viewerId) {
+      return NextResponse.json(
+        { error: "viewerId is required" },
+        { status: 400 }
+      );
+    }
+
+    const follows = await prisma.follow.findMany({
+      where: { followerId: viewerId },
+      select: { followingId: true },
+    });
+    const followingIds = follows.map((f) => f.followingId);
+
+    if (followingIds.length === 0) {
+      return NextResponse.json({ videos: [] });
+    }
 
     const videos = await prisma.video.findMany({
-      where: { flagged: false },
-      orderBy:
-        sort === "top"
-          ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
-          : { createdAt: "desc" },
+      where: { flagged: false, userId: { in: followingIds } },
+      orderBy: { createdAt: "desc" },
       skip: offset,
       take: limit,
       include: {
