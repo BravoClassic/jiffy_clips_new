@@ -5,6 +5,25 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 import { ensureUser } from "@/lib/ensure-user";
+import { serializeVideos } from "@/lib/serialize-video";
+
+function parseNameList(value: FormDataEntryValue | null, max: number): string[] {
+  if (typeof value !== "string" || !value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+
+    const names = parsed
+      .filter((name): name is string => typeof name === "string")
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0 && name.length <= 50);
+
+    return Array.from(new Set(names)).slice(0, max);
+  } catch {
+    return [];
+  }
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -16,6 +35,8 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const description = formData.get("description") as string | null;
+    const tags = parseNameList(formData.get("tags"), 10);
+    const categories = parseNameList(formData.get("categories"), 3);
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -43,13 +64,32 @@ export async function POST(req: Request) {
         userId,
         videoUrl,
         description: description || null,
+        tags: {
+          create: tags.map((name) => ({
+            tag: { connectOrCreate: { where: { name }, create: { name } } },
+          })),
+        },
+        categories: {
+          create: categories.map((name) => ({
+            category: {
+              connectOrCreate: { where: { name }, create: { name } },
+            },
+          })),
+        },
+      },
+      include: {
+        user: true,
+        _count: { select: { likes: true, comments: true } },
       },
     });
+
+    const [serialized] = await serializeVideos([video], userId);
 
     return NextResponse.json({
       message: "Video uploaded successfully",
       videoId: video.id,
       videoUrl,
+      video: serialized,
     });
   } catch (error) {
     console.error("Error handling video upload:", error);

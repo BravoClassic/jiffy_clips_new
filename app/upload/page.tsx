@@ -6,34 +6,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { Sidebar } from "../components/sidebar";
 import { InfoMessage } from "../components/infoMessage";
+import { useUpload } from "../components/upload-provider";
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState<string>("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [infoMessageType, setInfoMessageType] = useState<string>("");
+  const [analyzing, setAnalyzing] = useState(false);
   const router = useRouter();
-  const [loading, setLoading] = useState<Boolean | null>();
   const hasMounted = useRef(false);
+  const { startUpload, status } = useUpload();
+  const uploading = status === "uploading";
 
-  const getDescription = async () => {
-    console.log("description");
-    console.log(message);
-    if (!file) {
-      setMessage("Something went wrong. Upload a video");
-      setInfoMessageType("error");
-      return;
-    }
-
-    setLoading(true);
+  // One AI pass per selected file: description, tags, and categories
+  // come back from a single /api/analyze-video call.
+  const analyzeVideo = async (selectedFile: File) => {
+    setAnalyzing(true);
     setMessage(null);
 
     const formData = new FormData();
-    formData.append("video", file);
-
-    console.log(file);
+    formData.append("video", selectedFile);
 
     try {
       const response = await fetch("/api/analyze-video", {
@@ -43,149 +41,70 @@ export default function Upload() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Description generation failed");
+        throw new Error(errorData.error || "Video analysis failed");
       }
 
       const result = await response.json();
-      console.log("Video Description:", result.description);
-      setDescription(() => result.description);
-
-      // Display or use the description
+      setDescription(result.description || "");
+      setTags(result.tags || []);
+      setCategories(result.categories || []);
     } catch (err: any) {
-      console.error("Error uploading video:", err.message);
-      setMessage(err.message || "Something went wrong");
-      setInfoMessageType("error");
+      console.error("Error analyzing video:", err.message);
+      setMessage(
+        `${err.message || "Video analysis failed"} — you can still write a description and upload.`
+      );
+      setInfoMessageType("warning");
     } finally {
-      setLoading(false);
+      setAnalyzing(false);
     }
   };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const selectedFile = e.target.files?.[0] || null;
     setFile(selectedFile);
+    setTags([]);
+    setCategories([]);
   };
 
-  useEffect(()=>{
-     if (hasMounted.current) {
-       if (file) {
-         getDescription();
-       }
-     } else {
-       hasMounted.current = true;
-     }
-  },[file])
-
-  const getTags = async () => {
-    if (!file) {
-      setMessage("Something went wrong. Upload a video");
-      setInfoMessageType("error");
-      return;
-    }
-
-    setLoading(true);
-    setMessage(null);
-
-    const formData = new FormData();
-    formData.append("video", file);
-
-    console.log(file);
-
-    try {
-      const response = await fetch("/api/generate-tags", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Description generation failed");
+  useEffect(() => {
+    if (hasMounted.current) {
+      if (file) {
+        analyzeVideo(file);
       }
-
-      const result = await response.json();
-      console.log("Tags and Categories:", result);
-      return result;
-    } catch (err: any) {
-      console.error("Error uploading video:", err.message);
-      setMessage(err.message || "Something went wrong");
-      setInfoMessageType("error");
-    } finally {
-      setLoading(false);
+    } else {
+      hasMounted.current = true;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
+
+  const removeTag = (tag: string) => {
+    setTags((prev) => prev.filter((t) => t !== tag));
   };
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setMessage("Something went wrong. Upload a video");
-      setInfoMessageType("error");
+    if (!file || uploading) {
+      if (!file) {
+        setMessage("Something went wrong. Upload a video");
+        setInfoMessageType("error");
+      }
       return;
     }
 
-    const tagsAndCategories = await getTags();
-    if (!tagsAndCategories) return;
-
-    const { tags, categories } = tagsAndCategories;
-
-    try {
-      // Step 1: Upload video to local storage + database
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("description", description);
-      const uploadResponse = await fetch("/api/upload-video", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.error || "Video upload failed.");
-      }
-
-      const { videoId } = await uploadResponse.json();
-
-      // Step 2: Save tags and categories, linked to the video
-      await Promise.all([
-        ...tags.map(async (tag: string) => {
-          const tagResponse = await fetch("/api/add-tag", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ videoId, tag }),
-          });
-          if (!tagResponse.ok) {
-            throw new Error("Failed to insert tag.");
-          }
-        }),
-        ...categories.map(async (category: string) => {
-          const categoryResponse = await fetch("/api/add-category", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ videoId, category }),
-          });
-          if (!categoryResponse.ok) {
-            throw new Error("Failed to insert category.");
-          }
-        }),
-      ]);
-
-      setMessage("Video uploaded successfully!");
-      setInfoMessageType("success");
-      resetForm(); // Reset the form after successful upload
-      router.push("/upload?success=true");
-    } catch (err: any) {
-      console.error("Error during upload:", err.message);
-      setMessage(err.message || "Something went wrong.");
-      setInfoMessageType("error");
-    }
+    // The upload continues in the background (see UploadProvider) while
+    // the user is sent straight to the feed; a progress card tracks it.
+    startUpload({ file, description, tags, categories });
+    resetForm();
+    router.push("/home");
   };
 
-   const resetForm = () => {
-     setFile(null);
-     setDescription("");
-   };
+  const resetForm = () => {
+    setFile(null);
+    setDescription("");
+    setTags([]);
+    setCategories([]);
+  };
 
   return (
     <>
@@ -209,15 +128,65 @@ export default function Upload() {
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder={
+                analyzing ? "Generating description..." : "Describe your video"
+              }
               required
             />
           </div>
-          {!loading &&
-        
-          <Button type="submit" className="w-full">
-            Upload
+
+          {tags.length > 0 && (
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {categories.length > 0 && (
+            <div className="space-y-2">
+              <Label>Categories</Label>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <span
+                    key={category}
+                    className="rounded-full bg-gray-900 text-white px-3 py-1 text-xs"
+                  >
+                    {category}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {analyzing && (
+            <p className="text-sm text-gray-500">
+              Analyzing your video with AI...
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={analyzing || uploading}
+          >
+            {uploading ? "Uploading..." : "Upload"}
           </Button>
-          }
         </form>
       </div>
       {infoMessageType && (

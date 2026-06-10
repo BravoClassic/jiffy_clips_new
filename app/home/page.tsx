@@ -10,6 +10,7 @@ export default function Home() {
       <VideoFeed
         fetchUrl="/api/get-videos"
         emptyMessage="No videos yet. Be the first to upload one!"
+        acceptUploads
       />
     </>
   );

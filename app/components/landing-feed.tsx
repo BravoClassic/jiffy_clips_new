@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Volume2, VolumeX } from "lucide-react";
 import { JiffyLogo, JiffyLogoMark } from "./jiffy-logo";
 import type { FeedVideo } from "./video-card";
 
@@ -12,20 +12,31 @@ const FREE_PREVIEW_COUNT = 2;
 function LandingVideo({
   video,
   isActive,
+  soundOn,
+  onToggleSound,
 }: {
   video: FeedVideo;
   isActive: boolean;
+  soundOn: boolean;
+  onToggleSound: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    videoEl.muted = !soundOn;
+
     if (isActive) {
-      videoRef.current.play().catch(() => {});
+      videoEl.play().catch(() => {
+        videoEl.muted = true;
+        videoEl.play().catch(() => {});
+      });
     } else {
-      videoRef.current.pause();
+      videoEl.pause();
     }
-  }, [isActive]);
+  }, [isActive, soundOn]);
 
   return (
     <div className="h-screen w-full flex-shrink-0 snap-start relative">
@@ -39,6 +50,17 @@ function LandingVideo({
           playsInline
         />
       </div>
+      <button
+        onClick={onToggleSound}
+        className="absolute top-20 right-4 z-10 p-2 rounded-full bg-black/40 hover:bg-black/60"
+        aria-label={soundOn ? "Mute" : "Unmute"}
+      >
+        {soundOn ? (
+          <Volume2 className="h-5 w-5" />
+        ) : (
+          <VolumeX className="h-5 w-5" />
+        )}
+      </button>
       <div className="absolute bottom-4 left-4 right-20 z-10">
         <div className="flex items-start space-x-2">
           <Avatar>
@@ -77,6 +99,7 @@ function LandingVideo({
 export function LandingFeed() {
   const [videos, setVideos] = useState<FeedVideo[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [soundOn, setSoundOn] = useState(false);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
@@ -166,7 +189,12 @@ export function LandingFeed() {
               sectionRefs.current[index] = el;
             }}
           >
-            <LandingVideo video={video} isActive={index === activeIndex} />
+            <LandingVideo
+              video={video}
+              isActive={index === activeIndex}
+              soundOn={soundOn}
+              onToggleSound={() => setSoundOn((on) => !on)}
+            />
           </div>
         ))}
 

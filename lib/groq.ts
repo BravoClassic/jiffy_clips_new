@@ -1,6 +1,18 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
+export function parseJsonResponse<T>(text: string): T {
+  const fenced = text.match(/```(?:json)?([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1] : text;
+  const braced = candidate.match(/\{[\s\S]*\}/);
+
+  if (!braced) {
+    throw new Error("Failed to extract JSON from model response.");
+  }
+
+  return JSON.parse(braced[0]);
+}
+
 export async function askGroqAboutFrames(
   frames: string[],
   prompt: string

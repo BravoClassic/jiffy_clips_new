@@ -3,6 +3,7 @@ import "./globals.css";
 import Script from "next/script";
 import { Metadata } from "next";
 import localFont from "next/font/local";
+import { UploadProvider } from "./components/upload-provider";
 
 export const metadata: Metadata = {
   title: "Jiffy Clips",
@@ -45,7 +46,7 @@ export default function RootLayout({
         }}
       >
         <body className={`min-h-screen flex flex-col antialiased`}>
-          {children}
+          <UploadProvider>{children}</UploadProvider>
         </body>
       </ClerkProvider>
 

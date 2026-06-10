@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, MessageCircle, Share2, Flag, X } from "lucide-react";
+import { Heart, MessageCircle, Share2, Flag, X, Volume2, VolumeX } from "lucide-react";
 import { CommentsDrawer } from "./comments-drawer";
 import { InfoMessage } from "./infoMessage";
 
@@ -26,11 +26,15 @@ export function VideoCard({
   video,
   isActive,
   viewerId,
+  soundOn,
+  onToggleSound,
   onReported,
 }: {
   video: FeedVideo;
   isActive: boolean;
   viewerId: string | null | undefined;
+  soundOn: boolean;
+  onToggleSound: () => void;
   onReported: (videoId: string) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -51,50 +55,32 @@ export function VideoCard({
   const isOwnVideo = viewerId === video.user_id;
 
   useEffect(() => {
-    const handleVideoClick = () => {
-      try {
-        if (videoRef.current) {
-          videoRef.current.paused
-            ? videoRef.current.play()
-            : videoRef.current.pause();
-        }
-      } catch (error) {
-        console.error("Error handling video click:", error);
-      }
-    };
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
 
-    if (isActive && videoRef.current) {
-      try {
-        videoRef.current.play();
-      } catch (error) {
-        console.error("Error playing video:", error);
-      }
+    // Browsers only allow unmuted autoplay after the user has interacted
+    // with the page, so playback starts muted until sound is toggled on.
+    videoEl.muted = !soundOn;
 
-      if (videoRef.current) {
-        try {
-          videoRef.current.addEventListener("click", handleVideoClick);
-        } catch (error) {
-          console.error("Error adding click event listener:", error);
-        }
-      }
-    } else if (videoRef.current) {
-      try {
-        videoRef.current.pause();
-      } catch (error) {
-        console.error("Error pausing video:", error);
-      }
+    if (isActive) {
+      videoEl.play().catch(() => {
+        videoEl.muted = true;
+        videoEl.play().catch(() => {});
+      });
+    } else {
+      videoEl.pause();
     }
+  }, [isActive, soundOn]);
 
-    return () => {
-      if (videoRef.current) {
-        try {
-          videoRef.current.removeEventListener("click", handleVideoClick);
-        } catch (error) {
-          console.error("Error removing click event listener:", error);
-        }
-      }
-    };
-  }, [isActive]);
+  const togglePlayback = () => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    if (videoEl.paused) {
+      videoEl.play().catch(() => {});
+    } else {
+      videoEl.pause();
+    }
+  };
 
   const toggleLike = async () => {
     if (!viewerId) return;
@@ -194,9 +180,22 @@ export function VideoCard({
           controls={false}
           className="w-full h-full object-contain"
           loop
+          muted
           playsInline
+          onClick={togglePlayback}
         />
       </div>
+      <button
+        onClick={onToggleSound}
+        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/40 hover:bg-black/60"
+        aria-label={soundOn ? "Mute" : "Unmute"}
+      >
+        {soundOn ? (
+          <Volume2 className="h-5 w-5" />
+        ) : (
+          <VolumeX className="h-5 w-5" />
+        )}
+      </button>
       <div className="absolute bottom-4 left-4 right-20 z-10">
         <div className="flex items-start space-x-2">
           <Avatar>
