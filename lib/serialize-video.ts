@@ -24,6 +24,23 @@ export async function serializeVideos(
   let likedVideoIds = new Set<string>();
   let followedUserIds = new Set<string>();
 
+  // Share totals come from the event log (one "share" event per tap),
+  // aggregated in a single grouped query for the whole page of videos.
+  const shareCounts = new Map<string, number>();
+  if (videos.length > 0) {
+    const shares = await prisma.videoEvent.groupBy({
+      by: ["videoId"],
+      where: {
+        type: "share",
+        videoId: { in: videos.map((v) => v.id) },
+      },
+      _count: { _all: true },
+    });
+    for (const row of shares) {
+      shareCounts.set(row.videoId, row._count._all);
+    }
+  }
+
   if (viewerId && videos.length > 0) {
     const [likes, follows] = await Promise.all([
       prisma.like.findMany({
@@ -53,7 +70,7 @@ export async function serializeVideos(
     description: video.description,
     likes: video._count.likes,
     comments: video._count.comments,
-    shares: 0,
+    shares: shareCounts.get(video.id) ?? 0,
     video_url: video.videoUrl,
     created_at: video.createdAt,
     liked_by_viewer: likedVideoIds.has(video.id),

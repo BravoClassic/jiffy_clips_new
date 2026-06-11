@@ -7,16 +7,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, X } from "lucide-react";
 import type { FeedVideo } from "./video-card";
 
-type UploadStatus = "idle" | "uploading" | "done" | "error";
+// "uploading"  — file bytes are in flight (real progress bar)
+// "processing" — file saved; server-side AI enrichment is running and we
+//                poll /status until the video flips to "ready"
+// "done"       — video is live; the feed picks it up via completedVideo
+type UploadStatus = "idle" | "uploading" | "processing" | "done" | "error";
 
 type UploadInput = {
   file: File;
   description: string;
-  tags: string[];
-  categories: string[];
 };
 
 type UploadContextValue = {
@@ -38,6 +40,9 @@ export function useUpload() {
   return context;
 }
 
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLLS = 60; // give enrichment up to ~3 minutes before giving up
+
 export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [progress, setProgress] = useState(0);
@@ -45,57 +50,83 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [completedVideo, setCompletedVideo] = useState<FeedVideo | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startUpload = useCallback((input: UploadInput) => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    setStatus("uploading");
-    setProgress(0);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append("file", input.file);
-    formData.append("description", input.description);
-    formData.append("tags", JSON.stringify(input.tags));
-    formData.append("categories", JSON.stringify(input.categories));
-
-    // XMLHttpRequest instead of fetch: it exposes upload progress events.
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload-video");
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        setProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          setProgress(100);
-          setStatus("done");
+  // Poll the status endpoint until enrichment finishes, then hand the
+  // feed-ready video object to whoever consumes completedVideo.
+  const pollUntilReady = useCallback(async (videoId: string) => {
+    for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      try {
+        const response = await fetch(`/api/videos/${videoId}/status`);
+        if (!response.ok) continue;
+        const data = await response.json();
+        if (data.status === "ready") {
           if (data.video) setCompletedVideo(data.video);
+          setStatus("done");
           hideTimer.current = setTimeout(() => setStatus("idle"), 4000);
-        } catch {
-          setStatus("error");
-          setError("Upload finished but the response was invalid.");
+          return;
         }
-      } else {
-        let message = "Video upload failed.";
-        try {
-          message = JSON.parse(xhr.responseText).error || message;
-        } catch {}
-        setStatus("error");
-        setError(message);
+      } catch {
+        // transient network error — keep polling
       }
-    };
-
-    xhr.onerror = () => {
-      setStatus("error");
-      setError("Network error during upload.");
-    };
-
-    xhr.send(formData);
+    }
+    // Enrichment is taking unusually long; the video will still appear on
+    // the next feed refresh, so don't treat this as a failure.
+    setStatus("done");
+    hideTimer.current = setTimeout(() => setStatus("idle"), 4000);
   }, []);
+
+  const startUpload = useCallback(
+    (input: UploadInput) => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      setStatus("uploading");
+      setProgress(0);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("file", input.file);
+      formData.append("description", input.description);
+
+      // XMLHttpRequest instead of fetch: it exposes upload progress events.
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload-video");
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            setProgress(100);
+            // File is saved; now wait for the AI pipeline to finish.
+            setStatus("processing");
+            pollUntilReady(data.videoId);
+          } catch {
+            setStatus("error");
+            setError("Upload finished but the response was invalid.");
+          }
+        } else {
+          let message = "Video upload failed.";
+          try {
+            message = JSON.parse(xhr.responseText).error || message;
+          } catch {}
+          setStatus("error");
+          setError(message);
+        }
+      };
+
+      xhr.onerror = () => {
+        setStatus("error");
+        setError("Network error during upload.");
+      };
+
+      xhr.send(formData);
+    },
+    [pollUntilReady]
+  );
 
   const consumeCompletedVideo = useCallback(() => {
     if (!completedVideo) return null;
@@ -134,6 +165,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
                 {progress}%
               </p>
             </>
+          )}
+
+          {status === "processing" && (
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="h-4 w-4 animate-pulse text-[#25F4EE]" />
+              Analyzing with AI — almost there...
+            </div>
           )}
 
           {status === "done" && (

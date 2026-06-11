@@ -9,9 +9,9 @@ const nextConfig = {
         port: '',
       },],
   },
-  // Keep this out of the server bundle so its bundled ffmpeg binary
-  // resolves correctly at runtime.
-  serverExternalPackages: ['ffmpeg-static'],
+  // Keep these out of the server bundle: ffmpeg-static's binary and
+  // transformers' native onnxruntime must resolve from node_modules.
+  serverExternalPackages: ['ffmpeg-static', '@huggingface/transformers'],
 };
 
 module.exports = nextConfig;

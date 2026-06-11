@@ -38,7 +38,8 @@ export function VideoFeed({
         });
         if (user?.id) params.set("viewerId", user.id);
 
-        const response = await fetch(`${fetchUrl}?${params.toString()}`);
+        const separator = fetchUrl.includes("?") ? "&" : "?";
+        const response = await fetch(`${fetchUrl}${separator}${params.toString()}`);
         const data = await response.json();
         const newVideos: FeedVideo[] = data.videos || [];
 

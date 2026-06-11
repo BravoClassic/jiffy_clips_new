@@ -26,8 +26,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ videos: [] });
     }
 
+    // Only fully processed videos are served; "processing" ones are still
+    // being enriched in the background.
     const videos = await prisma.video.findMany({
-      where: { flagged: false, userId: { in: followingIds } },
+      where: { flagged: false, status: "ready", userId: { in: followingIds } },
       orderBy: { createdAt: "desc" },
       skip: offset,
       take: limit,

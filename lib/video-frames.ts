@@ -3,7 +3,6 @@ import { promisify } from "util";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { nanoid } from "nanoid";
 import ffmpegPath from "ffmpeg-static";
 
 const execFileAsync = promisify(execFile);
@@ -32,20 +31,17 @@ async function getVideoDuration(videoPath: string): Promise<number> {
   );
 }
 
-export async function extractFrames(videoFile: File): Promise<string[]> {
+// Extracts FRAME_COUNT evenly spaced JPEG frames (base64) from a video that
+// already lives on disk — enrichment runs server-side after upload, so there
+// is no web File object involved anymore.
+export async function extractFrames(videoPath: string): Promise<string[]> {
   if (!ffmpegPath) {
     throw new Error("ffmpeg binary not found (ffmpeg-static)");
   }
 
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "jiffy-frames-"));
-  const videoPath = path.join(
-    workDir,
-    `${nanoid()}${path.extname(videoFile.name) || ".mp4"}`
-  );
 
   try {
-    fs.writeFileSync(videoPath, Buffer.from(await videoFile.arrayBuffer()));
-
     const duration = await getVideoDuration(videoPath);
 
     // Spread FRAME_COUNT frames evenly across the video; fall back to 1 fps

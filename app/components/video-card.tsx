@@ -42,6 +42,7 @@ export function VideoCard({
   const [liked, setLiked] = useState(video.liked_by_viewer);
   const [likesCount, setLikesCount] = useState(video.likes);
   const [commentsCount, setCommentsCount] = useState(video.comments);
+  const [sharesCount, setSharesCount] = useState(video.shares);
   const [following, setFollowing] = useState(video.following_author);
   const [showComments, setShowComments] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
@@ -53,6 +54,23 @@ export function VideoCard({
   } | null>(null);
 
   const isOwnVideo = viewerId === video.user_id;
+  // Timestamp of when this video became the active one; used to compute
+  // watch duration when it stops being active.
+  const watchStartRef = useRef<number | null>(null);
+
+  // Fire-and-forget event reporting; `keepalive` lets the request survive
+  // a navigation away mid-flight.
+  const sendEvent = (
+    type: "view" | "watch" | "share",
+    payload: { watchMs?: number; durationMs?: number } = {}
+  ) => {
+    fetch(`/api/videos/${video.video_id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, ...payload }),
+      keepalive: true,
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -71,6 +89,33 @@ export function VideoCard({
       videoEl.pause();
     }
   }, [isActive, soundOn]);
+
+  // Watch tracking lives in its own effect keyed only on isActive, so that
+  // toggling sound doesn't restart the clock or double-fire view events.
+  useEffect(() => {
+    const videoEl = videoRef.current;
+
+    if (isActive) {
+      watchStartRef.current = Date.now();
+      sendEvent("view");
+    }
+
+    // Runs when the video stops being active (or the card unmounts):
+    // report how long it was watched and how long the video is. The
+    // ranking uses the ratio to tell completions from quick skips.
+    return () => {
+      if (watchStartRef.current !== null) {
+        const watchMs = Date.now() - watchStartRef.current;
+        watchStartRef.current = null;
+        const durationMs =
+          videoEl && isFinite(videoEl.duration)
+            ? Math.round(videoEl.duration * 1000)
+            : undefined;
+        sendEvent("watch", { watchMs, durationMs });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
   const togglePlayback = () => {
     const videoEl = videoRef.current;
@@ -127,6 +172,10 @@ export function VideoCard({
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/home?video=${video.video_id}`;
+
+    // Record the share in the event log and reflect it immediately in the UI.
+    sendEvent("share");
+    setSharesCount((count) => count + 1);
 
     try {
       if (navigator.share) {
@@ -251,7 +300,7 @@ export function VideoCard({
           <Button variant="ghost" size="icon" onClick={handleShare}>
             <Share2 className="h-6 w-6" />
           </Button>
-          <span className="text-xs">{video.shares}</span>
+          <span className="text-xs">{sharesCount}</span>
         </div>
         <div className="flex flex-col items-center">
           <Button

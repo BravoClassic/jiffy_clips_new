@@ -120,15 +120,25 @@ This project is especially relevant to machine learning and recommendation roles
 - Cold-start content discovery
 - User-facing ML product development
 
+## Recommendation System
+
+The For You feed is ranked per viewer using a hybrid of semantic and behavioral signals:
+
+- **Embeddings**: every video's caption, AI description, tags, and categories are embedded locally with `all-MiniLM-L6-v2` (Transformers.js, 384 dims) and stored in SQLite; embedding happens during background enrichment after upload (`lib/enrich-video.ts`).
+- **Taste profile**: built per request from the viewer's likes (weight 1.0) and completed watches (weight 0.5) — weighted tag/category tallies plus a mean embedding vector (`lib/recommend.ts`).
+- **Hybrid scoring**: 50% embedding cosine similarity, 20% tag overlap, 10% category overlap, 10% freshness decay, 10% log-scaled engagement.
+- **Behavioral penalties**: videos watched in the last 24h are demoted (×0.6); videos skipped in under 2 seconds are demoted further (×0.4) for 3 days.
+- **Exploration**: every 5th feed slot is a deterministic-random pick from outside the top 20, so new content keeps generating signals.
+- **Event log**: the player reports `view`, `watch` (with watch/duration ms), and `share` events to an append-only `VideoEvent` table — the source for watch-time signals and share counts.
+- **Offline evaluation**: `npm run eval` runs a leave-one-out holdout over likes and reports Hit@5/Hit@10, MRR, coverage, and diversity.
+- **Reprocessing**: `npm run reprocess` retries AI enrichment for videos stuck in `processing` or missing embeddings.
+
 ## Future Improvements
 
-- Add vector embeddings for generated descriptions, tags, and categories
-- Add vector embeddings for user profiles based on their interactions and followed creators
-- Implement semantic retrieval over the generated metadata
-- Track richer user-video events such as views, skips, and watch duration
-- Build a hybrid ranking model using tag overlap, category match, embedding similarity, and engagement signals (likes, comments, follows)
-- Add offline recommendation evaluation using Precision@K, coverage, and diversity metrics
-- Add transcript/audio understanding for richer multimodal metadata
+- Fold followed creators into the taste profile
+- Add transcript/audio understanding for richer multimodal metadata (e.g. Whisper via Groq)
+- Cursor-based pagination and per-viewer ranking caches as the catalog grows
+- Swap brute-force cosine ranking for `sqlite-vec` approximate nearest-neighbor search at scale
 
 ## Getting Started
 

@@ -17,6 +17,7 @@ model User {
   likes     Like[]
   comments  Comment[]
   reports   Report[]
+  events    VideoEvent[]
   following Follow[] @relation("Follower")
   followers Follow[] @relation("Following")
 }
@@ -28,6 +29,11 @@ model Video {
   videoUrl    String
   description String?
   flagged     Boolean  @default(false)
+  // "processing" while AI enrichment (tags/description/embedding) runs in
+  // the background after upload; feeds only show "ready" videos.
+  status      String   @default("ready")
+  // 384-dim Float32Array from all-MiniLM-L6-v2, used for For You ranking
+  embedding   Bytes?
   createdAt   DateTime @default(now())
 
   likes      Like[]
@@ -35,6 +41,27 @@ model Video {
   reports    Report[]
   tags       VideoTag[]
   categories VideoCategory[]
+  events     VideoEvent[]
+}
+
+// Append-only log of implicit engagement signals. Likes are explicit and
+// stay in their own table; everything the player observes lands here:
+//   "view"  — video became the active one in the feed
+//   "watch" — video stopped being active; watchMs/durationMs record how long
+//   "share" — user tapped share
+model VideoEvent {
+  id         String   @id @default(cuid())
+  videoId    String
+  userId     String
+  type       String
+  watchMs    Int?
+  durationMs Int?
+  createdAt  DateTime @default(now())
+  video      Video    @relation(fields: [videoId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([videoId, type])
 }
 
 model Like {
